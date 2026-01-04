@@ -1,6 +1,8 @@
 // java
 package com.wuzi.ai;
 
+import com.wuzi.common.AnsiColor;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -411,4 +413,56 @@ public class GomokuAI {
         boolean isOpenThree = false;
         boolean isOpenFour = false;
     }
+
+
+    /**
+     * 渲染棋盘为彩色字符串（和人人对战风格一致）
+     * @param board 当前棋盘（0 空，1 白棋，2 蓝棋）
+     * @param lastX 最近落子的横坐标
+     * @param lastY 最近落子的纵坐标
+     * @return 彩色棋盘字符串
+     */
+    public String boardToString(int[][] board, int lastX, int lastY) {
+        if (board == null || board.length == 0) return "";
+        int size = board.length;
+        StringBuilder sb = new StringBuilder();
+        String COL_GAP = "─";
+
+        // ===== 顶部列号 =====
+        sb.append(AnsiColor.YELLOW).append("   ");
+        for (int col = 0; col < size; col++) {
+            char colLabel = (char) ('A' + col);
+            sb.append(colLabel).append(" ");
+        }
+        sb.append(AnsiColor.RESET).append("\n");
+
+        // ===== 棋盘主体 =====
+        for (int rowNum = size; rowNum >= 1; rowNum--) {
+            int y = rowNum - 1;
+            sb.append(AnsiColor.YELLOW);
+            if (rowNum < 10) sb.append(" ");
+            sb.append(rowNum).append(" ");
+
+            for (int col = 0; col < size; col++) {
+                int x = col;
+                String cell = "┼"; // 默认网格
+
+                // 棋子显示
+                if (board[x][y] == 1) cell = AnsiColor.WHITE + "●" + AnsiColor.YELLOW;
+                else if (board[x][y] == 2) cell = AnsiColor.BLUE + "○" + AnsiColor.YELLOW;
+
+                // 最新落子高亮
+                if (x == lastX && y == lastY) {
+                    cell = AnsiColor.BG_RED + cell + AnsiColor.RESET + AnsiColor.YELLOW;
+                }
+
+                sb.append(cell).append(COL_GAP);
+            }
+
+            sb.append(AnsiColor.RESET).append("\n"); // 每行末尾重置颜色
+        }
+
+        return sb.toString();
+    }
+
 }

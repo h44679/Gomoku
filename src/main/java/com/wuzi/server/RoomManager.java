@@ -1,5 +1,7 @@
 package com.wuzi.server;
 
+import com.wuzi.common.AnsiColor;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -18,16 +20,35 @@ public class RoomManager {
     public String getRoomsStatus() {
         StringBuilder sb = new StringBuilder();
         sb.append("=== 房间列表 ===\n");
+
         for (Map.Entry<Integer, GameRoom> entry : roomMap.entrySet()) {
             int roomId = entry.getKey();
             GameRoom room = entry.getValue();
-            sb.append("房间").append(roomId)
-                    .append("：人数=").append(room.getPlayerCount())
-                    .append("，游戏状态=").append(room.isGameStarted() ? "已开始" : "未开始")
-                    .append("\n");
+
+            int count = room.getPlayerCount();
+            String status;
+
+            if (count == 0) {
+                status = AnsiColor.color("空房", AnsiColor.GREEN); // 空房绿色
+            } else if (count == 1) {
+                status = AnsiColor.color("空房", AnsiColor.GREEN); // 空房绿色
+            } else {
+                status = AnsiColor.color("已满", AnsiColor.RED); // 已满红色
+            }
+
+            sb.append("[")
+                    .append(roomId)
+                    .append("] ")
+                    .append(String.format("%-6s", status))
+                    .append(" (")
+                    .append(count)
+                    .append("/2)\n");
         }
+
+        sb.append("\n👉 输入 enter room x 进入房间\n");
         return sb.toString();
     }
+
 
     public GameRoom getRoom(int roomId) {
         return roomMap.get(roomId);
@@ -46,6 +67,15 @@ public class RoomManager {
             return false;
         }
         removePlayerFromRoom(player);
-        return room.addPlayer(player);
+        boolean added = room.addPlayer(player);
+        if (added) {
+            ServerLogger.info(player.getName() + " 进入了房间 " + roomId);
+            player.setCurrentRoom(room);
+        }
+        return added;
     }
+
+
+
+
 }

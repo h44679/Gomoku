@@ -22,6 +22,10 @@ public class GameClient {
     private final int AI = 2;    // AI 为白
     private GomokuAI gomokuAI = new GomokuAI();
 
+    // 【修改点1】新增变量：记录最后落子的坐标，用于高亮显示
+    private int lastRow = -1;
+    private int lastCol = -1;
+
     public GameClient(String serverIp, int port) {
         try {
             socket = new Socket(serverIp, port);
@@ -52,13 +56,13 @@ public class GameClient {
 
                 } else if (input.equalsIgnoreCase("help")) {
                     if (isAiMode) {
-                        showHelpInfo();  // AI 模式下本地打印
+                        showHelpInfo();
                     } else {
-                        out.println("help"); // 联网模式发服务器，由服务器返回 help 内容
+                        out.println("help");
                     }
                 } else if (input.equalsIgnoreCase("ai start")) {
                     if (!isAiMode) {
-                        out.println("leave"); // 离开房间（防止占名额）
+                        out.println("leave");
                         resetLocalBoard();
                         isAiMode = true;
                         System.out.println(AnsiColor.color("本地人机对战模式已开启。你执黑(●)，AI执白(○)。", AnsiColor.CYAN));
@@ -78,8 +82,12 @@ public class GameClient {
                             continue;
                         }
 
-                        // 玩家落子
+                        // --- 玩家落子 ---
                         localBoard[rc[0]][rc[1]] = HUMAN;
+                        // 【修改点2】记录最后落子位置
+                        lastRow = rc[0];
+                        lastCol = rc[1];
+
                         printLocalBoard();
                         if (checkWin(rc[0], rc[1], HUMAN)) {
                             System.out.println(AnsiColor.color("恭喜你，五连！你赢了！", AnsiColor.YELLOW));
@@ -88,12 +96,22 @@ public class GameClient {
                             continue;
                         }
 
-                        // AI 落子
+                        // --- AI 落子 ---
                         int[] aiMove = gomokuAI.getNextStep(localBoard, AI);
                         if (aiMove[0] != -1 && aiMove[1] != -1) {
                             localBoard[aiMove[0]][aiMove[1]] = AI;
-                            System.out.println(AnsiColor.color("AI 落子: " + idxToLabel(aiMove[0]) + " " + idxToLabel(aiMove[1]), AnsiColor.CYAN));
+
+                            // 【修改点2】记录 AI 最后落子位置
+                            lastRow = aiMove[0];
+                            lastCol = aiMove[1];
+
+                            // 【修改点3】AI 落子提示使用专门的格式化方法
+                            // 修复：交换行列参数，使文字提示与棋盘视觉渲染的 A-O / 1-15 保持一致
+                            String posStr = getColLabel(lastRow) + " " + getRowLabel(lastCol);
+                            System.out.println(AnsiColor.color("AI 落子: " + posStr, AnsiColor.CYAN));
+
                             printLocalBoard();
+
                             if (checkWin(aiMove[0], aiMove[1], AI)) {
                                 System.out.println(AnsiColor.color("AI 五连，游戏结束！", AnsiColor.YELLOW));
                                 isAiMode = false;
@@ -111,7 +129,7 @@ public class GameClient {
                         resetLocalBoard();
                         System.out.println(AnsiColor.color("你已经返回大厅", AnsiColor.GREEN));
                     } else {
-                        out.println("leave"); // 联网模式发服务器
+                        out.println("leave");
                     }
 
                 } else if (input.equalsIgnoreCase("ls rooms") || input.startsWith("enter room ") || input.equalsIgnoreCase("start")) {
@@ -141,28 +159,26 @@ public class GameClient {
         for (int i = 0; i < SIZE; i++)
             for (int j = 0; j < SIZE; j++)
                 localBoard[i][j] = 0;
+        // 【修改点4】重置最后落子记录
+        lastRow = -1;
+        lastCol = -1;
     }
 
-    // 棋盘打印，A-O/0-14坐标，+空，●黑，○白
-    // 原来的 printLocalBoard() 替换成：
+    // 棋盘打印
+    // 【修改点5】使用 lastRow 和 lastCol 进行高亮渲染
     private void printLocalBoard() {
-        // 最近落子坐标，用于红色高亮
-        int lastX = -1, lastY = -1;
-        outer:
-        for (int r = 0; r < SIZE; r++) {
-            for (int c = 0; c < SIZE; c++) {
-                if (localBoard[r][c] != 0) {
-                    lastX = r;
-                    lastY = c;
-                    break outer; // 只找最后落子做高亮
-                }
-            }
-        }
-
-        // 调用 GomokuAI 的彩色棋盘渲染方法
-        System.out.println(gomokuAI.boardToString(localBoard, lastX, lastY));
+        System.out.println(gomokuAI.boardToString(localBoard, lastRow, lastCol));
     }
 
+    // 【修改点6】辅助方法：行索引转数字字符串 (0->1, 14->15)
+    private String getRowLabel(int r) {
+        return String.valueOf(r + 1);
+    }
+
+    // 【修改点6】辅助方法：列索引转字母字符串 (0->A, 14->O)
+    private String getColLabel(int c) {
+        return String.valueOf((char)('A' + c));
+    }
 
     // 坐标解析，支持 put 7 A 或 put A 7
     private int[] parseInput(String s1, String s2) {
@@ -200,26 +216,22 @@ public class GameClient {
         return false;
     }
 
-    // 行列号转A-O或数字
-    private String idxToLabel(int idx) {
-        if(idx>=0&&idx<10) return String.valueOf(idx);
-        else if(idx>=10&&idx<15) return String.valueOf((char)('A'+(idx-10)));
-        return "?";
-    }
-
-
-    // A-O/0-14转数字
+    // A-O 转 0-14，或者 1-15 转 0-14
     private Integer labelToIdx(String s) {
+        if (s == null || s.isEmpty()) return null;
         s = s.toUpperCase();
-        if (s.length() == 1) {
-            char ch = s.charAt(0);
-            if (ch >= '0' && ch <= '9') return ch - '0';
-            if (ch >= 'A' && ch <= 'O') return ch - 'A'+10;
+
+        char firstChar = s.charAt(0);
+        if (firstChar >= 'A' && firstChar <= 'O') {
+            return firstChar - 'A';
         }
+
         try {
             int v = Integer.parseInt(s);
+            v = v - 1;
             if (v >= 0 && v < SIZE) return v;
-        } catch (Exception ignored) {}
+        } catch (NumberFormatException ignored) {
+        }
         return null;
     }
 
@@ -230,12 +242,11 @@ public class GameClient {
         System.out.println(AnsiColor.color("enter room X  - 加入X号房间", AnsiColor.CYAN));
         System.out.println(AnsiColor.color("start         - 开始游戏", AnsiColor.CYAN));
         System.out.println(AnsiColor.color("ai start      - 开始人机游戏", AnsiColor.CYAN));
-        System.out.println(AnsiColor.color("put X Y       - 落子", AnsiColor.CYAN));
+        System.out.println(AnsiColor.color("put X Y       - 落子 (例: put H 8)", AnsiColor.CYAN));
         System.out.println(AnsiColor.color("leave         - 离开当前房间，返回大厅", AnsiColor.CYAN));
         System.out.println(AnsiColor.color("exit          - 与服务器断开连接", AnsiColor.CYAN));
         System.out.println(AnsiColor.color("==============================\n", AnsiColor.CYAN));
     }
-
 
     private void listenServerMessage() {
         String msg;

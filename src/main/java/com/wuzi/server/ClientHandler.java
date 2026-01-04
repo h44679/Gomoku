@@ -23,21 +23,25 @@ public class ClientHandler implements Runnable {
     @Override
     public void run() {
         try {
+            // 初始化输入输出流
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             String msg;
 
+            // 循环读取客户端指令
             while ((msg = in.readLine()) != null) {
                 String[] parts = msg.split(" ");
                 if (parts.length == 0) continue;
 
+                // 日志记录：收到玩家指令
                 ServerLogger.info("收到玩家[" + (player != null ? player.getName() : "未知") + "]命令：" + msg);
+
+                // 指令分发
                 switch (parts[0]) {
                     case "nickname":
                         handleNickname(parts);
                         break;
                     case "help":
-                        // 服务端也可返回帮助信息（可选，客户端已本地显示）
                         sendHelpInfo();
                         break;
                     case "ls":
@@ -52,24 +56,29 @@ public class ClientHandler implements Runnable {
                     case "put":
                         handleMakeMove(parts);
                         break;
-                    case "leave":      // 新增离开房间指令
+                    case "leave":
                         handleLeaveRoom();
                         break;
                     case "exit":
                         handleExit();
-                        return;
+                        return; // 退出循环，关闭连接
                     default:
                         out.println(AnsiColor.color("无效指令！输入 help 查看所有支持的指令", AnsiColor.RED));
                         break;
                 }
             }
         } catch (IOException e) {
+            // 网络异常：处理玩家断线
             handleDisconnect();
         } finally {
+            // 释放资源
             closeResources();
         }
     }
 
+    /**
+     * 处理AI对战开始指令（预留逻辑）
+     */
     private void handleAiStart() {
         if (player == null) {
             out.println(AnsiColor.color("请先设置昵称！", AnsiColor.RED));
@@ -78,18 +87,15 @@ public class ClientHandler implements Runnable {
 
         GameRoom currentRoom = player.getCurrentRoom();
         if (currentRoom != null && currentRoom.getPlayerCount() >= 2) {
-            // 房间已满，有玩家在玩，拒绝开启本地 AI
             out.println(AnsiColor.color("房间已有人，无法开启 AI 对战，请退出房间或等待空闲房间", AnsiColor.RED));
             return;
         }
 
-        // 可以开始本地 AI 对战逻辑
         out.println(AnsiColor.color("AI 对战模式已开启，你执黑(●)，AI执白(○)", AnsiColor.CYAN));
-        // ⭐ 如果需要，你可以设置房间锁定，或者直接在客户端开启本地 AI
     }
 
     /**
-     * 服务端返回帮助信息（客户端输入help时触发）
+     * 发送帮助信息给客户端
      */
     private void sendHelpInfo() {
         out.println(AnsiColor.color("\n===== 五子棋游戏指令帮助 =====", AnsiColor.CYAN));
@@ -104,8 +110,12 @@ public class ClientHandler implements Runnable {
         out.println(AnsiColor.color("==============================\n", AnsiColor.CYAN));
     }
 
+    /**
+     * 处理设置昵称指令
+     */
     private void handleNickname(String[] parts) {
         String nickname = parts.length > 1 ? parts[1].trim() : "匿名玩家";
+        // 创建玩家实例（适配你的Player构造方法）
         player = new Player(nickname, socket, out);
         ServerLogger.info("玩家[" + nickname + "]连接成功");
         out.println(AnsiColor.color(
@@ -114,6 +124,9 @@ public class ClientHandler implements Runnable {
         ));
     }
 
+    /**
+     * 处理查看房间列表指令
+     */
     private void handleListRooms(String[] parts) {
         if (parts.length > 1 && parts[1].equals("rooms")) {
             out.println(roomManager.getRoomsStatus());
@@ -122,6 +135,9 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    /**
+     * 处理加入房间指令
+     */
     private void handleEnterRoom(String[] parts) {
         if (player == null) {
             out.println(AnsiColor.color("请先设置昵称！输入 help 查看帮助", AnsiColor.RED));
@@ -151,6 +167,9 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    /**
+     * 处理开始游戏指令（玩家准备）
+     */
     private void handleStartGame() {
         if (player == null) {
             out.println(AnsiColor.color("请先设置昵称！输入 help 查看帮助", AnsiColor.RED));
@@ -164,39 +183,87 @@ public class ClientHandler implements Runnable {
         currentRoom.playerReady(player);
     }
 
+    /**
+     * 核心：处理落子指令（修复所有问题，实现需求）
+     */
     private void handleMakeMove(String[] parts) {
+        // 1. 基础校验：玩家未初始化/未加入房间
         if (player == null) {
             out.println(AnsiColor.color("请先设置昵称！输入 help 查看帮助", AnsiColor.RED));
-            return;
+            return; // 终止流程，不执行后续逻辑
         }
         GameRoom currentRoom = player.getCurrentRoom();
         if (currentRoom == null) {
             out.println(AnsiColor.color("请先加入房间！输入 help 查看帮助", AnsiColor.RED));
-            return;
-        }
-        if (parts.length != 3) {
-            out.println(AnsiColor.color("落子格式错误！正确格式：put 7 A | 输入 help 查看帮助", AnsiColor.RED));
-            return;
+            return; // 终止流程
         }
 
+        // 2. 游戏状态校验：游戏已结束则拒绝落子
+        if (currentRoom.isGameOver()) {
+            out.println(AnsiColor.color("游戏已经结束，无法落子！", AnsiColor.RED));
+            return; // 终止流程
+        }
+
+        // 3. 指令格式校验：必须是 put X Y 格式
+        if (parts.length != 3) {
+            out.println(AnsiColor.color("落子格式错误！正确格式：put 7 A | 输入 help 查看帮助", AnsiColor.RED));
+            return; // 终止流程
+        }
+
+        // 4. 解析落子坐标 & 玩家颜色（增加空值校验）
         String xStr = parts[1];
         String yStr = parts[2];
         String playerColor = player.getColor();
+        if (playerColor == null || playerColor.isEmpty()) {
+            out.println(AnsiColor.color("棋子颜色未分配！请重新加入房间", AnsiColor.RED));
+            return; // 终止流程
+        }
 
+        // 5. 调用GameRoom的落子方法，获取结果（包含无效坐标/落子失败等错误）
         String result = currentRoom.makeMove(xStr, yStr, playerColor, player);
-        out.println(result);
 
+        // ========== 核心修复：判断结果是否为错误提示（红色），若是则终止流程 ==========
+        // 错误提示的特征：以AnsiColor.RED开头（因为GameRoom中错误提示已加红色）
+        if (result.startsWith(AnsiColor.RED)) {
+            out.println(result); // 只给出错玩家显示错误提示
+            return; // 终止流程，不给对手发任何消息
+        }
+        // ========== 修复结束 ==========
+
+        // 6. 结果着色（仅处理正常结果：获胜/落子成功）
+        String coloredResult;
+        if (currentRoom.isGameOver()) {
+            coloredResult = AnsiColor.color(result, AnsiColor.GREEN); // 获胜提示：绿色
+        } else {
+            coloredResult = AnsiColor.color(result, AnsiColor.CYAN);  // 普通落子：青色
+        }
+
+        // 7. 核心逻辑：先发送棋盘 → 后发送结果提示
+        out.println(currentRoom.getBoard().toString());
+        out.println(coloredResult);
+
+        // 获胜方补充游戏结束提示
+        if (currentRoom.isGameOver()) {
+            out.println(AnsiColor.color("游戏结束！", AnsiColor.BLUE));
+        }
+
+        // 8. 给对手同步消息（仅正常落子/获胜时执行）
         Player opponent = (currentRoom.getPlayer1() == player) ? currentRoom.getPlayer2() : currentRoom.getPlayer1();
         if (opponent != null) {
-            opponent.sendMessage(result);
             opponent.sendMessage(currentRoom.getBoard().toString());
+            opponent.sendMessage(coloredResult);
+
+            if (!currentRoom.isGameOver()) {
+                opponent.sendMessage(AnsiColor.color("轮到你下棋了", AnsiColor.BLUE));
+            } else {
+                opponent.sendMessage(AnsiColor.color("游戏结束！仍在该房间，自行选择退出或继续...", AnsiColor.BLUE));
+            }
         }
-        // ⭐ 新增：提示对手该下棋了
-        opponent.sendMessage(
-                AnsiColor.color("轮到你下棋了", AnsiColor.BLUE)
-        );
     }
 
+    /**
+     * 处理退出游戏指令
+     */
     private void handleExit() {
         if (player != null) {
             roomManager.removePlayerFromRoom(player);
@@ -205,6 +272,9 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    /**
+     * 处理玩家断线
+     */
     private void handleDisconnect() {
         if (player != null) {
             roomManager.removePlayerFromRoom(player);
@@ -212,6 +282,9 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    /**
+     * 释放客户端资源
+     */
     private void closeResources() {
         try {
             if (in != null) in.close();
@@ -222,7 +295,9 @@ public class ClientHandler implements Runnable {
         }
     }
 
-    // 在 ClientHandler 类里添加
+    /**
+     * 处理离开房间指令
+     */
     private void handleLeaveRoom() {
         if (player == null) {
             out.println(AnsiColor.color("请先设置昵称！输入 help 查看帮助", AnsiColor.RED));
@@ -234,28 +309,16 @@ public class ClientHandler implements Runnable {
             out.println(AnsiColor.color("你不在任何房间，已在大厅", AnsiColor.YELLOW));
             return;
         }
-        // ⭐ 1. 先找到对手（还没移除之前）
-        Player opponent = null;
-        if (currentRoom.getPlayer1() == player) {
-            opponent = currentRoom.getPlayer2();
-        } else if (currentRoom.getPlayer2() == player) {
-            opponent = currentRoom.getPlayer1();
-        }
 
-        // ⭐ 2. 通知对手
+        // 通知对手
+        Player opponent = (currentRoom.getPlayer1() == player) ? currentRoom.getPlayer2() : currentRoom.getPlayer1();
         if (opponent != null) {
-            opponent.sendMessage(
-                    AnsiColor.color("您的对手已离开房间", AnsiColor.BLUE)
-            );
+            opponent.sendMessage(AnsiColor.color("您的对手已离开房间", AnsiColor.BLUE));
         }
-        // 从房间移除玩家
+
+        // 移除玩家并提示
         roomManager.removePlayerFromRoom(player);
-
-        // 给玩家提示
         out.println(AnsiColor.color("已离开房间，返回大厅", AnsiColor.GREEN));
-
-        // 日志记录
         ServerLogger.info("玩家[" + player.getName() + "]离开房间[" + currentRoom.getRoomId() + "]返回大厅");
     }
-
 }

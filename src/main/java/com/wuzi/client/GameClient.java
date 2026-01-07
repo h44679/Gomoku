@@ -235,13 +235,9 @@ public class GameClient {
 
     private void showHelpInfo() {
         System.out.println(AnsiColor.color("\n===== 五子棋游戏指令帮助 =====", AnsiColor.CYAN));
-        System.out.println("ls rooms      - 查看所有房间状态");
-        System.out.println("enter room X  - 加入X号房间");
-        System.out.println("put X Y       - 落子 (例: put H 8)");
-        System.out.println("start         - 准备游戏");
-        System.out.println("leave         - 离开当前房间");
-        System.out.println("exit          - 退出程序");
-        System.out.println("==============================\n");
+        System.out.println(AnsiColor.color("put X Y       - 落子 (例: put H 8)", AnsiColor.CYAN));
+        System.out.println(AnsiColor.color("exit          - 退出人机对战", AnsiColor.CYAN));
+        System.out.println(AnsiColor.color("==============================\n", AnsiColor.CYAN));
     }
 
     private void closeResources() {

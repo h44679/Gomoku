@@ -110,4 +110,14 @@ public class RoomManager {
             room.removePlayer(player);
         }
     }
+    // RoomManager 类中新增
+    public synchronized boolean destroyRoom(int roomId) {
+        if (!roomMap.containsKey(roomId)) {
+            ServerLogger.error("物理销毁房间失败：房间[" + roomId + "]不存在");
+            return false;
+        }
+        ServerLogger.info("房间[" + roomId + "]已物理销毁：从房间管理器中移除，剩余房间数：" + (roomMap.size() - 1));
+        roomMap.remove(roomId);
+        return true;
+    }
 }

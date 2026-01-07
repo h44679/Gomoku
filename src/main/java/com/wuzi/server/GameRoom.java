@@ -211,6 +211,8 @@ public class GameRoom {
         player1Ready = false;
         player2Ready = false;
         isLocked = false;
+        // 唯一改动：添加逻辑销毁日志
+        ServerLogger.info("房间[" + roomId + "]已逻辑销毁（重置）：清空所有状态，恢复初始值");
     }
 
     // Getters 保留

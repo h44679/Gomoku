@@ -255,6 +255,7 @@ public class ClientHandler implements Runnable {
 
             if (!currentRoom.isGameOver()) {
                 opponent.sendMessage(AnsiColor.color("轮到你下棋了", AnsiColor.BLUE));
+                player.sendMessage(AnsiColor.color("当前不该你下棋，等待对手下棋...", AnsiColor.BLUE));
             } else {
                 opponent.sendMessage(AnsiColor.color("游戏结束！仍在该房间，自行选择退出或继续...", AnsiColor.BLUE));
             }
@@ -320,5 +321,11 @@ public class ClientHandler implements Runnable {
         roomManager.removePlayerFromRoom(player);
         out.println(AnsiColor.color("已离开房间，返回大厅", AnsiColor.GREEN));
         ServerLogger.info("玩家[" + player.getName() + "]离开房间[" + currentRoom.getRoomId() + "]返回大厅");
+    }
+
+    // 替换 ClientHandler 中错误的 destroyRoom 方法
+    public synchronized boolean destroyRoom(int roomId) {
+        // 修复：通过 roomManager 调用销毁逻辑（roomMap 属于 RoomManager）
+        return roomManager.destroyRoom(roomId);
     }
 }

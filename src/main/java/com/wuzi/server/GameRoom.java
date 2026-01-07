@@ -16,6 +16,9 @@ public class GameRoom {
     private boolean player1Ready = false;
     private boolean player2Ready = false;
     private boolean isLocked = false; // 房间锁定标志
+    // 当前落子方，取值为 "black" 或 "white"
+    private String currentTurn;
+
 
     // 【保留功能】锁房（AI对战/单人占用）
     public synchronized void lockRoom() {
@@ -186,10 +189,29 @@ public class GameRoom {
         }
 
         if (player1Ready && player2Ready) {
-            startGame();
+            assignColorsRandomly(); // 新增：随机分配黑白棋
+            startGame();            // 再开始游戏
         } else {
             player.sendMessage(AnsiColor.color("等待对手准备...", AnsiColor.BLUE));
         }
+    }
+
+    // 新增方法：随机分配棋子颜色
+    private void assignColorsRandomly() {
+        if (Math.random() < 0.5) {
+            player1.setColor("black");
+            player2.setColor("white");
+        } else {
+            player1.setColor("white");
+            player2.setColor("black");
+        }
+
+        // 通知玩家各自棋子颜色
+        player1.sendMessage(AnsiColor.color("游戏开始！你执" + player1.getColor() + "，黑棋先下", AnsiColor.BLUE));
+        player2.sendMessage(AnsiColor.color("游戏开始！你执" + player2.getColor() + "，黑棋先下", AnsiColor.BLUE));
+
+        // 设置当前回合为黑棋
+        currentTurn = "black";
     }
 
     /**

@@ -250,6 +250,6 @@ public class GameClient {
 
     public static void main(String[] args) {
         // 记得联机时改为服务器实际 IP
-        new GameClient("10.142.220.89", 8888);
+        new GameClient("127.0.0.1", 8888);
     }
 }

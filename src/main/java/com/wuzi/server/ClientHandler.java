@@ -62,6 +62,9 @@ public class ClientHandler implements Runnable {
                     case "exit":
                         handleExit();
                         return; // 退出循环，关闭连接
+                    case "again":   // 新增
+                        handleAgain();
+                        break;
                     default:
                         out.println(AnsiColor.color("无效指令！输入 help 查看所有支持的指令", AnsiColor.RED));
                         break;
@@ -74,6 +77,26 @@ public class ClientHandler implements Runnable {
             // 释放资源
             closeResources();
         }
+    }
+    private void handleAgain() {
+        if (player == null) {
+            out.println(AnsiColor.color("请先设置昵称！输入 help 查看帮助", AnsiColor.RED));
+            return;
+        }
+
+        GameRoom currentRoom = player.getCurrentRoom();
+        if (currentRoom == null) {
+            out.println(AnsiColor.color("你不在任何房间，无法再来一局！", AnsiColor.RED));
+            return;
+        }
+
+        if (!currentRoom.isGameOver()) {
+            out.println(AnsiColor.color("当前游戏还未结束，无法再来一局！", AnsiColor.RED));
+            return;
+        }
+
+        // 核心调用：请求再来一局
+        currentRoom.requestAgain(player);
     }
 
     /**
@@ -99,13 +122,17 @@ public class ClientHandler implements Runnable {
      */
     private void sendHelpInfo() {
         out.println(AnsiColor.color("\n===== 五子棋游戏指令帮助 =====", AnsiColor.CYAN));
-        out.println(AnsiColor.color("help          - 查看所有指令说明", AnsiColor.CYAN));
+        out.println(AnsiColor.color("【 房间管理 】", AnsiColor.YELLOW));
         out.println(AnsiColor.color("ls rooms      - 查看所有房间状态（人数/游戏状态）", AnsiColor.CYAN));
         out.println(AnsiColor.color("enter room X  - 加入X号房间", AnsiColor.CYAN));
+        out.println(AnsiColor.color("leave         - 离开当前房间，返回大厅", AnsiColor.CYAN));
+        out.println(AnsiColor.color("【 游戏操作 】", AnsiColor.YELLOW));
         out.println(AnsiColor.color("start         - 开始游戏", AnsiColor.CYAN));
         out.println(AnsiColor.color("ai start      - 开始人机游戏", AnsiColor.CYAN));
+        out.println(AnsiColor.color("again         - 再来一局", AnsiColor.CYAN));
         out.println(AnsiColor.color("put X Y       - 落子", AnsiColor.CYAN));
-        out.println(AnsiColor.color("leave         - 离开当前房间，返回大厅", AnsiColor.CYAN));
+        out.println(AnsiColor.color("【 系统 】", AnsiColor.YELLOW));
+        out.println(AnsiColor.color("help          - 查看所有指令说明", AnsiColor.CYAN));
         out.println(AnsiColor.color("exit          - 与服务器断开连接", AnsiColor.CYAN));
         out.println(AnsiColor.color("==============================\n", AnsiColor.CYAN));
     }
@@ -244,7 +271,7 @@ public class ClientHandler implements Runnable {
 
         // 获胜方补充游戏结束提示
         if (currentRoom.isGameOver()) {
-            out.println(AnsiColor.color("游戏结束！", AnsiColor.BLUE));
+            out.println(AnsiColor.color("游戏结束！输入leave离开房间，或者输入again再来一局...", AnsiColor.BLUE));
         }
 
         // 8. 给对手同步消息（仅正常落子/获胜时执行）
@@ -257,7 +284,7 @@ public class ClientHandler implements Runnable {
                 opponent.sendMessage(AnsiColor.color("轮到你下棋了", AnsiColor.BLUE));
                 player.sendMessage(AnsiColor.color("当前不该你下棋，等待对手下棋...", AnsiColor.BLUE));
             } else {
-                opponent.sendMessage(AnsiColor.color("游戏结束！仍在该房间，自行选择退出或继续...", AnsiColor.BLUE));
+                opponent.sendMessage(AnsiColor.color("游戏结束！输入leave离开房间，或者输入again再来一局...", AnsiColor.BLUE));
             }
         }
     }
@@ -268,7 +295,7 @@ public class ClientHandler implements Runnable {
     private void handleExit() {
         if (player != null) {
             roomManager.removePlayerFromRoom(player);
-            ServerLogger.info("玩家[" + player.getName() + "]主动退出");
+            ServerLogger.info("玩家[" + player.getName() + "]断开连接");
             out.println(AnsiColor.color("已退出游戏！", AnsiColor.GREEN));
         }
     }

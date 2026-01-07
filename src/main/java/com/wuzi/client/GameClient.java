@@ -121,7 +121,7 @@ public class GameClient {
     private void handlePutCommand(String input) {
         String[] parts = input.split(" ");
         if (parts.length != 3) {
-            System.out.println(AnsiColor.color("格式错误！例: put 7 A", AnsiColor.RED));
+            System.out.println(AnsiColor.color("格式错误！例: put A 7", AnsiColor.RED));
             return;
         }
 

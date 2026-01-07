@@ -206,7 +206,7 @@ public class ClientHandler implements Runnable {
 
         // 3. 指令格式校验：必须是 put X Y 格式
         if (parts.length != 3) {
-            out.println(AnsiColor.color("落子格式错误！正确格式：put 7 A | 输入 help 查看帮助", AnsiColor.RED));
+            out.println(AnsiColor.color("落子格式错误！正确格式：put A 7 | 输入 help 查看帮助", AnsiColor.RED));
             return; // 终止流程
         }
 

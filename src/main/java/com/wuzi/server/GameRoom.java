@@ -199,7 +199,7 @@ public class GameRoom {
         player1Ready = false;
         player2Ready = false;
         assignColorsRandomly();
-
+        isGameStarted = true;   // ← 修正这里，游戏正式开始
         // 发送棋盘给双方
         sendMessageToAll(board.toString());
         sendMessageToAll(AnsiColor.color("新的一局已开始，请开始落子！", AnsiColor.BLUE));

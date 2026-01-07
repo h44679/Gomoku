@@ -163,7 +163,7 @@ public class GameClient {
         if (aiMove[0] != -1) {
             localBoard[aiMove[0]][aiMove[1]] = AI;
             lastRow = aiMove[0]; lastCol = aiMove[1];
-            System.out.println(AnsiColor.color("AI 落子: " + getColLabel(lastCol) + " " + getRowLabel(lastRow), AnsiColor.CYAN));
+            System.out.println(AnsiColor.color("AI 落子: " + getColLabel(lastRow) + " " + getRowLabel(lastCol), AnsiColor.CYAN));
             printLocalBoard();
             if (checkWin(aiMove[0], aiMove[1], AI)) {
                 System.out.println(AnsiColor.color("AI 赢了，再接再厉！", AnsiColor.YELLOW));

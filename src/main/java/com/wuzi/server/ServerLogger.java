@@ -28,7 +28,7 @@ public class ServerLogger {
         System.out.println(time() + AnsiColor.color("[WARN] " + msg, AnsiColor.YELLOW));
     }
 
-    //题目2：ERROR日志通过两步实现ANSI颜色渲染
+    //ERROR日志通过两步实现ANSI颜色渲染
     //1.依赖`AnsiColor`类定义的红色常量，作为错误日志的字体颜色；
     //2.调用`AnsiColor.color()`方法，将“[ERROR] + 日志内容”与红色码拼接，同时该方法会自动在文本末尾添加`RESET`常量，完成样式重置。
     public static void error(String msg) {

@@ -34,7 +34,14 @@ public class GameClient {
         try {
             socket = new Socket(serverIp, port);
 
-            //客户端用 PrintWriter 给服务端发消息，核心是做 4 件事：一是发昵称完成身份初始化，二是转发 ls、enter、put 等游戏指令实现对战交互，三是发 exit/leave 同步断开 / 退出房间的状态，四是开启自动刷新保证消息实时送达，不积压。
+            // 题20：客户端发送消息给服务器
+            // PrintWriter是Java标准的网络输出流
+            // 作用流程：
+            // 1.out.println(message) 将消息写入输出缓冲区
+            // 2.true参数（autoFlush=true）使println()自动刷新缓冲，确保消息即时发送
+            // 3.服务端的ClientHandler在in.readLine()处接收该消息
+            // 4.消息包括：昵称设置、房间指令（ls, enter）、游戏指令（put, start）等
+            // 不使用flush()是因为PrintWriter设置了autoFlush，无需手动刷新
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             System.out.println(AnsiColor.color("成功连接到五子棋服务端", AnsiColor.GREEN));
@@ -46,7 +53,15 @@ public class GameClient {
 
             out.println("nickname " + nickname);
 
-            //单独开线程收服务端消息，核心是 3 个原因：一是避免 in.readLine () 阻塞主线程，导致玩家没法操作；二是能实时收到对手落子、棋盘刷新这些对战消息；三是主线程管输入、子线程管接收，分工明确，程序更稳。
+            // 题21：客户端接收线程的必要性
+            // 为什么需要单独的线程来接收服务器消息？
+            // 1.阻塞问题：in.readLine()是阻塞方法，没有消息时会一直等待
+            //   如果在主线程中调用readLine()，主线程会被卡住无法处理用户输入
+            // 2.并发需求：主线程需要处理用户的键盘输入（Scanner），接收线程负责实时接收服务消息
+            //   两者同时进行才能实现"一边输入指令，一边接收对手落子和棋盘更新"的效果
+            // 3.避免消息丢失：接收线程持续监听Socket，任何时刻服务端的消息都能及时接收
+            //   否则若主线程正在等待输入，期间的服务消息会被缓存甚至丢失
+            // 4.setDaemon(true)使其为守护线程，主线程退出时自动销毁，避免资源泄漏
             Thread receiveThread = new Thread(this::listenServerMessage);
             receiveThread.setDaemon(true); // 设置为守护线程，主线程退出它也退出
             receiveThread.start();

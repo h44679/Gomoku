@@ -41,6 +41,10 @@ public class Player {
     public boolean isTestMode() { return isTestMode; }
 
     // 补充：方便日志打印的toString方法（可选）
+    // 题7：toString()方法用于对象的字符串表示，主要用于日志输出和调试
+    // 该方法将Player对象的属性（如名称、颜色、房间）格式化为易读的字符串
+    // 在日志输出时，可直接打印Player对象，自动调用此方法完成对象信息序列化
+    // 例如：玩家执黑棋时，会输出 "Player{name='张三', color='black', room=1}"
     @Override
     public String toString() {
         return "Player{" +

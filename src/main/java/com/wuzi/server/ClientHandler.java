@@ -213,18 +213,6 @@ public class ClientHandler implements Runnable {
     /**
      * 核心：处理落子指令（修复所有问题，实现需求）
      */
-    // 题19：解析 put x y 命令
-    // 答案解析：如何提取坐标数据的完整流程
-    // 1.指令格式：用户输入 "put A 7"（列标签+空格+行号）
-    // 2.拆分处理：parts = msg.split(" ") 得到 ["put", "A", "7"]
-    // 3.提取坐标：
-    //   - parts[1] = "A"（列标签，需要转换为0-14的数组下标）
-    //   - parts[2] = "7"（行号，需要转换为0-14的数组下标）
-    // 4.坐标转换：调用GameBoard.coordToXY()进行校验和转换
-    //   - coordToXY()检查列是否A-O、行是否1-15的有效范围
-    //   - 将'A'转为0、'B'转为1等；行号减1得数组下标（7->6）
-    // 5.合法性检查：若coordToXY()返回null说明坐标非法，拒绝落子
-    // 6.调用房间的makeMove()完成落子逻辑（权限检查、棋盘更新、胜负判定）
     private void handleMakeMove(String[] parts) {
         // 1. 基础校验：玩家未初始化/未加入房间
         if (player == null) {
@@ -266,13 +254,6 @@ public class ClientHandler implements Runnable {
         }
 
         // ========== 清屏刷新棋盘 ==========
-        // 题22：广播棋盘更新给对战双方
-        // 答案解析：让对战双方都看到落子的核心流程
-        // 1.服务端统一维护最新棋盘数据（存在GameRoom.board中）
-        // 2.落子玩家：先清屏（\u001B[2J）再打印新棋盘，看到自己的落子结果
-        // 3.对手玩家：接收同样的清屏和棋盘消息，实时同步看到对方落子
-        // 4.结果提示：都发送相同的"落子成功"或"游戏结束"提示，保证信息一致
-        // 这样两边都能看到最新的棋盘状态和游戏进度，实现对等的对战体验
         StringBuilder boardOutput = new StringBuilder();
         boardOutput.append("\u001B[2J"); // 清屏
         boardOutput.append("\u001B[H");  // 光标移到左上
@@ -295,12 +276,6 @@ public class ClientHandler implements Runnable {
         }
 
         // 8. 给对手同步消息
-        // 题23：清屏刷新的含义
-        // 答案解析：\u001B[2J 和 \u001B[H 是ANSI控制码
-        // - \u001B[2J: 清除整个屏幕的所有内容
-        // - \u001B[H: 将光标移回左上角(0,0)位置
-        // 作用：每次落子后清屏重绘棋盘，避免旧数据残留导致界面混乱
-        // 这样玩家看到的总是最新的棋盘状态，不会有重叠或闪烁
         Player opponent = (currentRoom.getPlayer1() == player) ? currentRoom.getPlayer2() : currentRoom.getPlayer1();
         if (opponent != null) {
             StringBuilder oppOutput = new StringBuilder();
@@ -335,14 +310,6 @@ public class ClientHandler implements Runnable {
     /**
      * 处理玩家断线
      */
-    // 题24：客户端断线处理
-    // 答案解析：当玩家网络断开时，in.readLine()会抛出IOException异常，这是网络IO操作捕获的标准异常
-    // 具体处理方式：
-    // 1.捕获IOException异常（在run()方法的catch块中）
-    // 2.调用roomManager.removePlayerFromRoom(player)安全移除玩家，防止房间僵尸玩家
-    // 3.使用ServerLogger记录警告日志"玩家[xxx]网络断线"，用于监控和调试
-    // 4.在finally块中调用closeResources()释放Socket、输入输出流等资源，避免内存泄漏
-    // 这样即使客户端异常断开，服务端也能优雅地清理资源和通知对手
     private void handleDisconnect() {
         if (player != null) {
             roomManager.removePlayerFromRoom(player);

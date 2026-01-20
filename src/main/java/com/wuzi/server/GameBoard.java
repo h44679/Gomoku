@@ -85,6 +85,19 @@ public class GameBoard {
         return false;
     }
 
+    // ===== 测试访问器 =====
+    public int[][] getBoard() {
+        return this.board;
+    }
+
+    public int getLastX() {
+        return lastX;
+    }
+
+    public int getLastY() {
+        return lastY;
+    }
+
     // ===== 打印棋盘（仅使用AnsiColor现有颜色） =====
     @Override
     public String toString() {

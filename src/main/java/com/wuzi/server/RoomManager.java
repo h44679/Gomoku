@@ -13,6 +13,8 @@ public class RoomManager {
     private final AtomicInteger idGenerator;
 
     public RoomManager() {
+        //核心原因是ConcurrentHashMap的特性更适配“房间ID与房间实例绑定管理”的需求
+        //销毁房间时，HashMap可通过ID直接删除对应元素，效率高；ArrayList删除元素时会导致后续元素移位，效率较低，且删除后若依赖索引对应ID，会出现关联错乱。
         this.roomMap = new ConcurrentHashMap<>();
         this.idGenerator = new AtomicInteger(1);
 
@@ -24,11 +26,13 @@ public class RoomManager {
     }
 
     /**
-     * 创建房间
+     * 创建房间生成唯一id  该代码的核心作用是在多线程环境下生成全局唯一的房间ID，为每个房间分配专属标识
      */
     public GameRoom createRoom() {
+        //getAndIncrement()方法能保证原子性自增，即多线程同时创建房间时，不会出现ID重复的情况，确保每个房间有唯一标识，避免房间管理混乱。
         int id = idGenerator.getAndIncrement();
         GameRoom room = new GameRoom(id);
+        //此处roomMap.put(id, room)是HashMap的核心方法，作用是将生成的房间ID与房间实例绑定，存入线程安全的映射集合中，完成房间的注册管理
         roomMap.put(id, room);
         ServerLogger.info("房间 " + id + " 已创建");
         return room;
@@ -49,7 +53,7 @@ public class RoomManager {
             currentRoom.removePlayer(player);
         }
 
-        // 2. 检查目标房间是否存在 (直接使用 roomMap，因为都在同一个类里)
+        // 2. 检查目标房间是否存在 (直接使用 roomMap，因为都在同一个类里),当房间不存在（roomMap中无对应ID的键值对）时，roomMap.get(roomId)会返回null
         GameRoom targetRoom = roomMap.get(roomId);
         if (targetRoom == null) {
             ServerLogger.warn("玩家[" + player.getName() + "]尝试进入不存在的房间: " + roomId);

@@ -51,7 +51,9 @@ public class GameBoard {
     }
 
     public boolean makeMove(int x, int y, int color) {
+        //•坐标转换时：过滤超出A-O列、1-15行的非法棋谱坐标，确保转换后数组下标有效；
         if (x < 0 || x >= BOARD_SIZE || y < 0 || y >= BOARD_SIZE) return false;
+        //棋盘用二维数组board存储，数组中每个元素代表一个单元格状态：0表示该位置无棋子，1代表白棋，2代表蓝棋。落子前先检查目标坐标(x,y)对应的数组元素值
         if (board[x][y] != 0) return false;
         board[x][y] = color;
         lastX = x;
@@ -64,6 +66,7 @@ public class GameBoard {
         int color = board[x][y];
         if (color == 0) return false;
 
+        //检查逻辑采用“双向遍历计数”：先以落子点(x,y)为起点，沿着对角线一个方向（如右下）遍历，统计连续相同颜色棋子的数量；再反向（如左上）遍历，继续累加数量；若总计数≥5，说明该对角线形成五子连珠，返回胜利结果
         int[][] directions = {{0, 1}, {1, 0}, {1, 1}, {1, -1}};
         for (int[] dir : directions) {
             int count = 1;
@@ -129,6 +132,7 @@ public class GameBoard {
 
                 // 1. 显示棋子（直接在黄色背景上叠加棋子颜色）
                 if (board[x][y] == 1) {
+                    //用AnsiColor.WHITE设置白色字体，打印“●”符号，之后恢复棋盘黄色样式；
                     cell = AnsiColor.WHITE + "●" + AnsiColor.YELLOW; // 白棋+恢复黄
                 } else if (board[x][y] == 2) {
                     cell = AnsiColor.BLUE + "○" + AnsiColor.YELLOW;   // 蓝棋+恢复黄

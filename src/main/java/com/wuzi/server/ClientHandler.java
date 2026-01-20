@@ -213,81 +213,90 @@ public class ClientHandler implements Runnable {
     /**
      * 核心：处理落子指令（修复所有问题，实现需求）
      */
+    //put 指令提取坐标的逻辑：先拆分指令拿到 X、Y 参数，双向解析兼容用户输反行列的情况，再把字母 / 数字转成 0-14 的数组下标，最后校验下标有效性，确保落子在 15×15 的棋盘内。
     private void handleMakeMove(String[] parts) {
         // 1. 基础校验：玩家未初始化/未加入房间
         if (player == null) {
             out.println(AnsiColor.color("请先设置昵称！输入 help 查看帮助", AnsiColor.RED));
-            return; // 终止流程，不执行后续逻辑
+            return;
         }
         GameRoom currentRoom = player.getCurrentRoom();
         if (currentRoom == null) {
             out.println(AnsiColor.color("请先加入房间！输入 help 查看帮助", AnsiColor.RED));
-            return; // 终止流程
+            return;
         }
 
         // 2. 游戏状态校验：游戏已结束则拒绝落子
         if (currentRoom.isGameOver()) {
             out.println(AnsiColor.color("游戏已经结束，无法落子！", AnsiColor.RED));
-            return; // 终止流程
+            return;
         }
 
-        // 3. 指令格式校验：必须是 put X Y 格式
+        // 3. 指令格式校验
         if (parts.length != 3) {
             out.println(AnsiColor.color("落子格式错误！正确格式：put A 7 | 输入 help 查看帮助", AnsiColor.RED));
-            return; // 终止流程
+            return;
         }
 
-        // 4. 解析落子坐标 & 玩家颜色（增加空值校验）
+        // 4. 解析坐标 & 玩家颜色
         String xStr = parts[1];
         String yStr = parts[2];
         String playerColor = player.getColor();
         if (playerColor == null || playerColor.isEmpty()) {
             out.println(AnsiColor.color("棋子颜色未分配！请重新加入房间", AnsiColor.RED));
-            return; // 终止流程
+            return;
         }
 
-        // 5. 调用GameRoom的落子方法，获取结果（包含无效坐标/落子失败等错误）
+        // 5. 落子
         String result = currentRoom.makeMove(xStr, yStr, playerColor, player);
-
-        // ========== 核心修复：判断结果是否为错误提示（红色），若是则终止流程 ==========
-        // 错误提示的特征：以AnsiColor.RED开头（因为GameRoom中错误提示已加红色）
-        if (result.startsWith(AnsiColor.RED)) {
-            out.println(result); // 只给出错玩家显示错误提示
-            return; // 终止流程，不给对手发任何消息
+        if (result.startsWith(AnsiColor.RED)) { // 错误提示直接返回
+            out.println(result);
+            return;
         }
-        // ========== 修复结束 ==========
 
-        // 6. 结果着色（仅处理正常结果：获胜/落子成功）
+        // ========== 清屏刷新棋盘 ==========
+        //双方实时看到落子的核心逻辑是：服务端先统一维护最新棋盘数据，给落子玩家发刷新消息更新界面，再给对手发一模一样的消息同步界面，同时发回合 / 结果提示，保证两边看到的棋盘和对局状态完全一致。    q
+        StringBuilder boardOutput = new StringBuilder();
+        boardOutput.append("\u001B[2J"); // 清屏
+        boardOutput.append("\u001B[H");  // 光标移到左上
+        boardOutput.append(currentRoom.getBoard().toString()); // 打印棋盘
+
+        // 6. 给自己发送
+        out.println(boardOutput.toString());
+
+        // 7. 结果提示
         String coloredResult;
         if (currentRoom.isGameOver()) {
-            coloredResult = AnsiColor.color(result, AnsiColor.GREEN); // 获胜提示：绿色
+            coloredResult = AnsiColor.color(result, AnsiColor.GREEN); // 获胜提示
         } else {
-            coloredResult = AnsiColor.color(result, AnsiColor.CYAN);  // 普通落子：青色
+            coloredResult = AnsiColor.color(result, AnsiColor.CYAN);  // 普通落子
         }
-
-        // 7. 核心逻辑：先发送棋盘 → 后发送结果提示
-        out.println(currentRoom.getBoard().toString());
         out.println(coloredResult);
 
-        // 获胜方补充游戏结束提示
         if (currentRoom.isGameOver()) {
-            out.println(AnsiColor.color("游戏结束！输入leave离开房间，或者输入again再来一局...", AnsiColor.BLUE));
+            out.println(AnsiColor.color("游戏结束！输入 leave 离开房间，或者输入 again 再来一局...", AnsiColor.BLUE));
         }
 
-        // 8. 给对手同步消息（仅正常落子/获胜时执行）
+        // 8. 给对手同步消息
         Player opponent = (currentRoom.getPlayer1() == player) ? currentRoom.getPlayer2() : currentRoom.getPlayer1();
         if (opponent != null) {
-            opponent.sendMessage(currentRoom.getBoard().toString());
+            StringBuilder oppOutput = new StringBuilder();
+            oppOutput.append("\u001B[2J"); // 清屏
+            oppOutput.append("\u001B[H");
+            oppOutput.append(currentRoom.getBoard().toString());
+
+            opponent.sendMessage(oppOutput.toString());
             opponent.sendMessage(coloredResult);
 
             if (!currentRoom.isGameOver()) {
                 opponent.sendMessage(AnsiColor.color("轮到你下棋了", AnsiColor.BLUE));
                 player.sendMessage(AnsiColor.color("当前不该你下棋，等待对手下棋...", AnsiColor.BLUE));
             } else {
-                opponent.sendMessage(AnsiColor.color("游戏结束！输入leave离开房间，或者输入again再来一局...", AnsiColor.BLUE));
+                opponent.sendMessage(AnsiColor.color("游戏结束！输入 leave 离开房间，或者输入 again 再来一局...", AnsiColor.BLUE));
             }
         }
     }
+
 
     /**
      * 处理退出游戏指令
@@ -303,6 +312,7 @@ public class ClientHandler implements Runnable {
     /**
      * 处理玩家断线
      */
+    //题目24：
     private void handleDisconnect() {
         if (player != null) {
             roomManager.removePlayerFromRoom(player);

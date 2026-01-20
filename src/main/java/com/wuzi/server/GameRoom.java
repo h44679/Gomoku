@@ -10,6 +10,7 @@ public class GameRoom {
     private Player player2;
     private AtomicInteger playerCount;
     private boolean isGameStarted;
+    //游戏未开始时禁止落子，核心是通过isGameStarted状态变量控制，确保游戏流程的规范性，游戏需满足“两人就位→双方准备→游戏开始”的流程，isGameStarted为false时，代表房间可能还缺人、玩家未全部准备，此时落子会导致游戏秩序混乱，破坏对局规则。
     private boolean isGameOver;
     private boolean isTestMode;
 
@@ -26,17 +27,20 @@ public class GameRoom {
         this(roomId, false);
     }
 
+    //GameRoom与GameBoard采用组合关系（GameRoom包含GameBoard实例，通过该实例调用棋盘相关功能），GameRoom负责房间管理（玩家加入/离开、游戏状态控制、回合切换），GameBoard专注于棋盘核心逻辑（落子、五子连珠判断、棋盘打印），符合“单一职责原则”，降低代码耦合度。
     public GameRoom(int roomId, boolean isTestMode) {
         this.roomId = roomId;
         this.board = new GameBoard();
         this.playerCount = new AtomicInteger(0);
         this.isGameStarted = false;
         this.isGameOver = false;
+        //初始化：游戏房间创建或重新开局时，currentTurnColor默认设为“black”，确保黑棋拥有先手权。
         this.currentTurnColor = "black";
         this.isTestMode = isTestMode;
     }
 
     // =================== 基础房间管理 ===================
+    //synchronized:GameRoom是多线程共享资源（两个玩家通过不同线程操作同一个房间，如同时加入、同时准备、交替落子），若不加锁，会出现数据不一致、逻辑混乱等问题（如并发加入导致房间人数超员、同时落子导致重复落子、回合切换异常）。
     public synchronized void lockRoom() { this.isLocked = true; }
     public synchronized void unlockRoom() { this.isLocked = false; }
     public synchronized boolean canEnter() { return !isLocked && playerCount.get() < 2; }
@@ -119,6 +123,9 @@ public class GameRoom {
         ServerLogger.success("房间[" + roomId + "]游戏开始");
     }
 
+   // 2.玩家落子成功（且未达成五子连珠获胜）后，通过三目运算符切换回合——若当前为黑棋回合，则切换为白棋；若为白棋回合，则切换为黑棋。
+
+    //防止连下：的核心逻辑是通过if (!currentTurnColor.equals(color))判断当前玩家是否拥有回合权
     public synchronized String makeMove(String p1, String p2, String color, Player player) {
         if (!isGameStarted) return AnsiColor.color("游戏未开始！", AnsiColor.RED);
         if (isGameOver) return AnsiColor.color("游戏已结束！", AnsiColor.RED);
@@ -190,7 +197,7 @@ public class GameRoom {
             opponent.sendMessage(AnsiColor.color("对手请求再来一局，请输入 again 接受或 leave 退出", AnsiColor.BLUE));
         }
     }
-
+    //重置规则：游戏结束后重新开局时，回合会重置为黑棋先下，保持规则统一性。
     public synchronized void resetGame() {
         board.reset();
         isGameStarted = false;

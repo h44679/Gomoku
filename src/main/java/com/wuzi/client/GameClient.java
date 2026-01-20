@@ -32,8 +32,9 @@ public class GameClient {
 
     public GameClient(String serverIp, int port) {
         try {
-            // 1. 建立连接
             socket = new Socket(serverIp, port);
+
+            //客户端用 PrintWriter 给服务端发消息，核心是做 4 件事：一是发昵称完成身份初始化，二是转发 ls、enter、put 等游戏指令实现对战交互，三是发 exit/leave 同步断开 / 退出房间的状态，四是开启自动刷新保证消息实时送达，不积压。
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             System.out.println(AnsiColor.color("成功连接到五子棋服务端", AnsiColor.GREEN));
@@ -42,10 +43,10 @@ public class GameClient {
             Scanner scanner = new Scanner(System.in);
             System.out.print(AnsiColor.color("请输入你的昵称：", AnsiColor.BLUE));
             String nickname = scanner.nextLine().trim();
+
             out.println("nickname " + nickname);
 
-            // 3. 【核心双线程】启动后台接收线程
-            // 这个线程会死循环读取 server 发来的消息，包括对手下的棋
+            //单独开线程收服务端消息，核心是 3 个原因：一是避免 in.readLine () 阻塞主线程，导致玩家没法操作；二是能实时收到对手落子、棋盘刷新这些对战消息；三是主线程管输入、子线程管接收，分工明确，程序更稳。
             Thread receiveThread = new Thread(this::listenServerMessage);
             receiveThread.setDaemon(true); // 设置为守护线程，主线程退出它也退出
             receiveThread.start();
